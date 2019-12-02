@@ -18,13 +18,17 @@
 package org.apache.ignite.internal.processors.query.h2.opt;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.ignite.IgniteCheckedException;
+import org.apache.ignite.IgniteLogger;
+import org.apache.ignite.binary.BinaryObject;
 import org.apache.ignite.internal.GridKernalContext;
 import org.apache.ignite.internal.processors.cache.CacheObject;
 import org.apache.ignite.internal.processors.cache.CacheObjectContext;
 import org.apache.ignite.internal.processors.cache.version.GridCacheVersion;
+import org.apache.ignite.internal.processors.cacheobject.IgniteCacheObjectProcessor;
 import org.apache.ignite.internal.processors.query.GridQueryIndexDescriptor;
 import org.apache.ignite.internal.processors.query.GridQueryTypeDescriptor;
 import org.apache.ignite.internal.util.GridAtomicLong;
@@ -95,6 +99,9 @@ public class GridLuceneIndex implements AutoCloseable {
     /** */
     private final GridKernalContext ctx;
 
+    /** */
+    private final IgniteLogger log;
+
     /**
      * Constructor.
      *
@@ -108,6 +115,7 @@ public class GridLuceneIndex implements AutoCloseable {
         this.ctx = ctx;
         this.cacheName = cacheName;
         this.type = type;
+        this.log = ctx.log(getClass());
 
         dir = new GridLuceneDirectory(new GridUnsafeMemory(0));
 
@@ -331,6 +339,12 @@ public class GridLuceneIndex implements AutoCloseable {
         /** */
         private CacheObjectContext coctx;
 
+        /** */
+        private Class<?> meta;
+
+        /** */
+        private String field;
+
         /**
          * Constructor.
          *
@@ -346,6 +360,8 @@ public class GridLuceneIndex implements AutoCloseable {
             this.searcher = searcher;
             this.docs = docs;
             this.filters = filters;
+            this.meta = loadTypeClass();
+            this.field = findFieldNameAnnotatedWithDocScore(this.meta);
 
             coctx = objectContext();
 
@@ -366,6 +382,53 @@ public class GridLuceneIndex implements AutoCloseable {
             return (Z)coctx.kernalContext().cacheObjects().unmarshal(coctx, bytes, ldr);
         }
 
+        @SuppressWarnings("unchecked")
+        private <Z> Z tryUnmarshalWithDocScore(byte[] bytes, ClassLoader ldr, String docScoreField, float docScore)
+              throws IgniteCheckedException {
+            if (coctx == null) // For tests.
+                return (Z)JdbcUtils.deserialize(bytes, null);
+
+            IgniteCacheObjectProcessor processor = coctx.kernalContext().cacheObjects();
+            Object obj = processor.unmarshal(coctx, bytes, ldr);
+
+            if (obj instanceof BinaryObject) {
+                BinaryObject binary = (BinaryObject) obj;
+                return (Z) processor.builder(binary).setField(docScoreField, docScore).build();
+            } else {
+                log.warning("Unmarshalled object is not instance of BinaryObject, it has " + obj.getClass());
+            }
+            return (Z) obj;
+        }
+
+        private Class<?> loadTypeClass() {
+            try {
+                return Class.forName(type.valueTypeName());
+            } catch (ClassNotFoundException e) {
+                log.warning("Could not load class type for "
+                      + type.valueTypeName()
+                      + " doc score will be missed for this object");
+                return null;
+            }
+        }
+
+        private String findFieldNameAnnotatedWithDocScore(Class<?> meta) {
+            if (meta == null) {
+                return null;
+            }
+
+            return Arrays.stream(meta.getDeclaredFields())
+                  .filter(field -> field.isAnnotationPresent(DocScore.class))
+                  .findFirst()
+                  .map(field -> {
+                      if (field.getType() == Float.class) {
+                          return field.getName();
+                      } else {
+                          log.warning("field type which is annotated by @DocScore should be Float");
+                          return null;
+                      }
+                  }).orElse(null);
+        }
+
         /**
          * Finds next element.
          *
@@ -377,9 +440,12 @@ public class GridLuceneIndex implements AutoCloseable {
 
             while (idx < docs.length) {
                 Document doc;
+                float score;
 
                 try {
-                    doc = searcher.doc(docs[idx++].doc);
+                    doc = searcher.doc(docs[idx].doc);
+                    score = docs[idx].score;
+                    idx++;
                 }
                 catch (IOException e) {
                     throw new IgniteCheckedException(e);
@@ -395,9 +461,11 @@ public class GridLuceneIndex implements AutoCloseable {
                 if (filters != null && !filters.apply(k))
                     continue;
 
-                V v = type.valueClass() == String.class ?
-                    (V)doc.get(VAL_STR_FIELD_NAME) :
-                    this.<V>unmarshall(doc.getBinaryValue(VAL_FIELD_NAME).bytes, ldr);
+                V v = type.valueClass() == String.class
+                      ? (V)doc.get(VAL_STR_FIELD_NAME)
+                      : field == null
+                        ? this.unmarshall(doc.getBinaryValue(VAL_FIELD_NAME).bytes, ldr)
+                        : this.tryUnmarshalWithDocScore(doc.getBinaryValue(VAL_FIELD_NAME).bytes, ldr, field, score);
 
                 assert v != null;
 

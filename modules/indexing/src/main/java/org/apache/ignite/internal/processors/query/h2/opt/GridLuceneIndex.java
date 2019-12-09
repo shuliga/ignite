@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteLogger;
 import org.apache.ignite.binary.BinaryObject;
+import org.apache.ignite.cache.query.annotations.QueryRankScore;
 import org.apache.ignite.internal.GridKernalContext;
 import org.apache.ignite.internal.processors.cache.CacheObject;
 import org.apache.ignite.internal.processors.cache.CacheObjectContext;
@@ -417,13 +418,13 @@ public class GridLuceneIndex implements AutoCloseable {
             }
 
             return Arrays.stream(meta.getDeclaredFields())
-                  .filter(field -> field.isAnnotationPresent(DocScore.class))
+                  .filter(field -> field.isAnnotationPresent(QueryRankScore.class))
                   .findFirst()
                   .map(field -> {
-                      if (field.getType() == Float.class) {
+                      if (field.getType() == Float.class || field.getType() == float.class) {
                           return field.getName();
                       } else {
-                          log.warning("field type which is annotated by @DocScore should be Float");
+                          log.warning("field type which is annotated by @QueryRankScore should be Float");
                           return null;
                       }
                   }).orElse(null);

@@ -17,6 +17,8 @@
 
 package org.apache.ignite.internal.processors.query;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -1574,6 +1576,15 @@ public class QueryUtils {
      */
     public static boolean removeField(QueryEntity entity, String alias) {
         return entity.getFields().remove(fieldNameByAlias(entity, alias)) != null;
+    }
+
+    public static boolean isAnnotationPresent(Class<?> type, Class<? extends Annotation> annotation) {
+        for (Field field : type.getDeclaredFields()) {
+            if (field.isAnnotationPresent(annotation)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

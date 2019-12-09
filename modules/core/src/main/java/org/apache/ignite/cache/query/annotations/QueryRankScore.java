@@ -1,4 +1,4 @@
-package org.apache.ignite.internal.processors.query.h2.opt;
+package org.apache.ignite.cache.query.annotations;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -9,5 +9,5 @@ import java.lang.annotation.Target;
 @Documented
 @Target({ElementType.FIELD})
 @Retention(value = RetentionPolicy.RUNTIME)
-public @interface DocScore {
+public @interface QueryRankScore {
 }

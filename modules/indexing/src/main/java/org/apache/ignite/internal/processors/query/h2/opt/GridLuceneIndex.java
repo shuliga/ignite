@@ -18,13 +18,12 @@
 package org.apache.ignite.internal.processors.query.h2.opt;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteLogger;
 import org.apache.ignite.binary.BinaryObject;
-import org.apache.ignite.cache.query.annotations.QueryRankScore;
+import org.apache.ignite.cache.query.QueryRanked;
 import org.apache.ignite.internal.GridKernalContext;
 import org.apache.ignite.internal.processors.cache.CacheObject;
 import org.apache.ignite.internal.processors.cache.CacheObjectContext;
@@ -32,6 +31,7 @@ import org.apache.ignite.internal.processors.cache.version.GridCacheVersion;
 import org.apache.ignite.internal.processors.cacheobject.IgniteCacheObjectProcessor;
 import org.apache.ignite.internal.processors.query.GridQueryIndexDescriptor;
 import org.apache.ignite.internal.processors.query.GridQueryTypeDescriptor;
+import org.apache.ignite.internal.processors.query.QueryUtils;
 import org.apache.ignite.internal.util.GridAtomicLong;
 import org.apache.ignite.internal.util.GridCloseableIteratorAdapter;
 import org.apache.ignite.internal.util.lang.GridCloseableIterator;
@@ -341,11 +341,8 @@ public class GridLuceneIndex implements AutoCloseable {
         private CacheObjectContext coctx;
 
         /** */
+        @Nullable
         private Class<?> meta;
-
-        /** */
-        private String field;
-
         /**
          * Constructor.
          *
@@ -361,9 +358,8 @@ public class GridLuceneIndex implements AutoCloseable {
             this.searcher = searcher;
             this.docs = docs;
             this.filters = filters;
-            this.meta = loadTypeClass();
-            this.field = findFieldNameAnnotatedWithDocScore(this.meta);
 
+            meta = loadTypeClass();
             coctx = objectContext();
 
             findNext();
@@ -384,7 +380,7 @@ public class GridLuceneIndex implements AutoCloseable {
         }
 
         @SuppressWarnings("unchecked")
-        private <Z> Z tryUnmarshalWithDocScore(byte[] bytes, ClassLoader ldr, String docScoreField, float docScore)
+        private <Z> Z tryUnmarshalWithDocScore(byte[] bytes, ClassLoader ldr, float docScore)
               throws IgniteCheckedException {
             if (coctx == null) // For tests.
                 return (Z)JdbcUtils.deserialize(bytes, null);
@@ -394,7 +390,7 @@ public class GridLuceneIndex implements AutoCloseable {
 
             if (obj instanceof BinaryObject) {
                 BinaryObject binary = (BinaryObject) obj;
-                return (Z) processor.builder(binary).setField(docScoreField, docScore).build();
+                return (Z) processor.builder(binary).setField(QueryRanked.RANK_FIELD_NAME, docScore).build();
             } else {
                 log.warning("Unmarshalled object is not instance of BinaryObject, it has " + obj.getClass());
             }
@@ -410,24 +406,6 @@ public class GridLuceneIndex implements AutoCloseable {
                       + " doc score will be missed for this object");
                 return null;
             }
-        }
-
-        private String findFieldNameAnnotatedWithDocScore(Class<?> meta) {
-            if (meta == null) {
-                return null;
-            }
-
-            return Arrays.stream(meta.getDeclaredFields())
-                  .filter(field -> field.isAnnotationPresent(QueryRankScore.class))
-                  .findFirst()
-                  .map(field -> {
-                      if (field.getType() == Float.class || field.getType() == float.class) {
-                          return field.getName();
-                      } else {
-                          log.warning("field type which is annotated by @QueryRankScore should be Float");
-                          return null;
-                      }
-                  }).orElse(null);
         }
 
         /**
@@ -464,9 +442,9 @@ public class GridLuceneIndex implements AutoCloseable {
 
                 V v = type.valueClass() == String.class
                       ? (V)doc.get(VAL_STR_FIELD_NAME)
-                      : field == null
-                        ? this.unmarshall(doc.getBinaryValue(VAL_FIELD_NAME).bytes, ldr)
-                        : this.tryUnmarshalWithDocScore(doc.getBinaryValue(VAL_FIELD_NAME).bytes, ldr, field, score);
+                      : QueryUtils.isSuperclassPresent(meta, QueryRanked.class)
+                        ? tryUnmarshalWithDocScore(doc.getBinaryValue(VAL_FIELD_NAME).bytes, ldr, score)
+                        : unmarshall(doc.getBinaryValue(VAL_FIELD_NAME).bytes, ldr);
 
                 assert v != null;
 

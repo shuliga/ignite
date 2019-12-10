@@ -21,7 +21,6 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -71,7 +70,6 @@ import org.apache.ignite.cache.query.SpiQuery;
 import org.apache.ignite.cache.query.SqlFieldsQuery;
 import org.apache.ignite.cache.query.SqlQuery;
 import org.apache.ignite.cache.query.TextQuery;
-import org.apache.ignite.cache.query.annotations.QueryRankScore;
 import org.apache.ignite.cluster.ClusterGroup;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.CacheConfiguration;
@@ -646,8 +644,8 @@ public class IgniteCacheProxyImpl<K, V> extends AsyncSupportAdapter<IgniteCache<
                 return ((Comparable) a).compareTo(b);
             } else {
                 throw new IgniteException("An instance is not comparable. "
-                        + "Please if you use @QueryRankScore annotation, "
-                        + "you have to implement comparable interface and the compare method for an instance");
+                        + "Please if you use ranked text query, "
+                        + "extend QueryRanked class that is comparable");
             }
         };
     }

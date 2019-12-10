@@ -19,7 +19,6 @@ package org.apache.ignite.cache.query;
 
 import javax.cache.Cache;
 import org.apache.ignite.IgniteCache;
-import org.apache.ignite.cache.query.annotations.QueryRankScore;
 import org.apache.ignite.cache.query.annotations.QueryTextField;
 import org.apache.ignite.internal.processors.query.QueryUtils;
 import org.apache.ignite.internal.util.typedef.internal.A;
@@ -139,7 +138,7 @@ public final class TextQuery<K, V> extends Query<Cache.Entry<K, V>> {
      * @return {@code this} For chaining.
      */
     public TextQuery<K, V> setType(Class<?> type) {
-        this.ordered = QueryUtils.isAnnotationPresent(type, QueryRankScore.class);
+        this.ordered = QueryUtils.isSuperclassPresent(type, QueryRanked.class);
         return setType(QueryUtils.typeName(type));
     }
 

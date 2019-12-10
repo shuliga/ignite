@@ -543,24 +543,24 @@ public class IgniteCacheProxyImpl<K, V> extends AsyncSupportAdapter<IgniteCache<
 
         if (query instanceof TextQuery) {
             TextQuery q = (TextQuery)query;
-
-            qry = ctx.queries().createFullTextQuery(q.getType(), q.getText(), q.getLimit(), isKeepBinary);
+            int numberOfNodes = ctx.discovery().size() - 1;
+            qry = ctx.queries().createFullTextQuery(q.getType(), q.getText(),
+                    q.isOrdered() ? numberOfNodes * q.getLimit() : q.getLimit(),
+                    isKeepBinary);
 
             if (grp != null)
                 qry.projection(grp);
 
-            CacheQueryFuture textFuture = ctx.kernalContext().query().executeQuery(GridCacheQueryType.TEXT, q.getText(), ctx,
+            fut = ctx.kernalContext().query().executeQuery(GridCacheQueryType.TEXT, q.getText(), ctx,
                 new IgniteOutClosureX<CacheQueryFuture<Map.Entry<K, V>>>() {
                     @Override public CacheQueryFuture<Map.Entry<K, V>> applyx() {
-                        return qry.execute();
+                        CacheQueryFuture future = qry.execute();
+                        return q.isOrdered() ?
+                                new CacheQueryFutureRankedDecorator((GridCacheQueryFutureAdapter) future,
+                                        comparatorByRankValue())
+                                : future;
                     }
                 }, false);
-
-            if (textFuture instanceof GridCacheQueryFutureAdapter && q.isOrdered()) {
-                fut = new CacheQueryFutureRankedDecorator((GridCacheQueryFutureAdapter) textFuture, comparatorByRankValue());
-            } else {
-                fut = textFuture;
-            }
         }
         else if (query instanceof SpiQuery) {
             qry = ctx.queries().createSpiQuery(isKeepBinary);

@@ -1,28 +1,46 @@
 package org.apache.ignite.internal.processors.cache.query;
 
 import org.apache.ignite.IgniteCheckedException;
-import org.jetbrains.annotations.Nullable;
+import org.apache.ignite.internal.IgniteInterruptedCheckedException;
+import org.apache.ignite.internal.processors.cache.GridCacheContext;
 
-public abstract class CacheQueryFutureDecorator<R> implements CacheQueryFuture<R> {
-   private final CacheQueryFuture<R> future;
+import java.util.UUID;
 
-   public CacheQueryFutureDecorator(CacheQueryFuture<R> future) {
+public abstract class CacheQueryFutureDecorator<K, V, R> extends GridCacheQueryFutureAdapter<K, V, R> {
+   private final GridCacheQueryFutureAdapter<K, V, R>  future;
+
+   public CacheQueryFutureDecorator(GridCacheQueryFutureAdapter<K, V, R> future) {
       this.future = future;
    }
 
-   @Nullable
-   @Override
-   public R next() throws IgniteCheckedException {
-      return future.next();
+   protected CacheQueryFutureDecorator(GridCacheContext<K, V> cctx, GridCacheQueryBean qry, boolean loc,
+                                       GridCacheQueryFutureAdapter<K, V, R> future) {
+      super(cctx, qry, loc);
+      this.future = future;
    }
 
    @Override
-   public boolean isDone() {
-      return future.isDone();
+   public void awaitFirstPage() throws IgniteCheckedException {
+      future.awaitFirstPage();
    }
 
    @Override
-   public boolean cancel() throws IgniteCheckedException {
-      return future.cancel();
+   protected boolean onPage(UUID nodeId, boolean last) {
+      return future.onPage(nodeId, last);
+   }
+
+   @Override
+   protected void loadPage() {
+      future.loadPage();
+   }
+
+   @Override
+   protected void loadAllPages() throws IgniteInterruptedCheckedException {
+      future.loadAllPages();
+   }
+
+   @Override
+   protected void cancelQuery() throws IgniteCheckedException {
+      future.cancelQuery();
    }
 }

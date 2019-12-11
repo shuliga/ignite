@@ -32,16 +32,9 @@ public class CacheQueryFutureRankedDecorator<K, V, R> extends CacheQueryFutureDe
       super(future);
       this.future = future;
       this.comparator = comparator;
-      this.limit = actualLimit();
+      this.limit = future.query().query().limit();
       this.isLimitDisabled = 0 >= this.limit;
       this.iterator = blockingIteratorImpl();
-   }
-
-   private int actualLimit() {
-      int numberOfNodes = future.cctx.discovery().size() - 1;
-      int limit = future.query().query().limit();
-
-      return limit / numberOfNodes;
    }
 
    /**

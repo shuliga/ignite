@@ -2766,7 +2766,7 @@ public abstract class GridCacheQueryManager<K, V> extends GridCacheManagerAdapte
      * @return Created query.
      */
     public CacheQuery<Map.Entry<K, V>> createFullTextQuery(String clsName,
-        String search, int limit, boolean keepBinary) {
+        String search, int limit, boolean keepBinary, boolean keepOrder) {
         A.notNull("clsName", clsName);
         A.notNull("search", search);
 
@@ -2778,7 +2778,7 @@ public abstract class GridCacheQueryManager<K, V> extends GridCacheManagerAdapte
             null,
             false,
             keepBinary,
-            null).limit(limit);
+            null).limit(limit).keepOrder(keepOrder);
     }
 
     /** @return Query iterators. */

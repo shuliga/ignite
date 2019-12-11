@@ -143,6 +143,9 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
     /** */
     private Boolean dataPageScanEnabled;
 
+    /** */
+    private boolean keepOrder;
+
     /**
      * @param cctx Context.
      * @param type Query type.
@@ -618,6 +621,17 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
             it = qryMgr.scanQueryDistributed(this, nodes);
 
         return mvccTracker != null ? new MvccTrackingIterator(it, mvccTracker) : it;
+    }
+
+    @Override
+    public CacheQuery<T> keepOrder(boolean keepOrder) {
+        this.keepOrder = keepOrder;
+
+        return this;
+    }
+
+    public boolean isKeepOrder() {
+        return keepOrder;
     }
 
     /**

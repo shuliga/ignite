@@ -269,4 +269,11 @@ public interface CacheQuery<T> {
      * @return Scan query iterator.
      */
     public GridCloseableIterator executeScanQuery() throws IgniteCheckedException;
+
+    /**
+     * For keeping order {@link org.apache.ignite.cache.query.Ranked}
+     * @param keepOrder boolean
+     * @return {@code this} query instance for chaining.
+     */
+    CacheQuery<T> keepOrder(boolean keepOrder);
 }

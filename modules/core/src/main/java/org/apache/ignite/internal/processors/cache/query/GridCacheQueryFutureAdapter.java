@@ -120,7 +120,10 @@ public abstract class GridCacheQueryFutureAdapter<K, V, R> extends GridFutureAda
         startTime = U.currentTimeMillis();
 
         long timeout = qry.query().timeout();
-        capacity = query().query().limit();
+        int limit = query().query().limit();
+        int numberOfNodes = cctx.discovery().size() - 1;
+        capacity = query().query().isKeepOrder() ? limit * numberOfNodes : limit;
+
         limitDisabled = capacity <= 0;
 
         if (timeout > 0) {

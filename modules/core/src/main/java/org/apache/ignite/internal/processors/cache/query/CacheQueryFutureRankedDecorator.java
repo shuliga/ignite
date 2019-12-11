@@ -8,6 +8,18 @@ import java.util.Iterator;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
+/**
+ * CacheQueryFutureRankedDecorator decorates CacheQueryFutureAdapter for collection results
+ * in {@link PriorityQueue} which actually is implementation of Max Tree.
+ *
+ * Decorates {@link GridCacheQueryFutureAdapter#next()} using {@link BlockingIterator#await()}
+ * Firstly a future completes an asynchronous task and results are collected to the queue
+ * Then iterator slices the queue if limitIsDisabled is {@code true}
+ * otherwise returns sorted queue in descending order
+ * @param <K> - key
+ * @param <V> - value
+ * @param <R> - result
+ */
 public class CacheQueryFutureRankedDecorator<K, V, R> extends CacheQueryFutureDecorator<K, V, R> {
    private final GridCacheQueryFutureAdapter<K, V, R> future;
    private final BlockingIterator<R> iterator;
@@ -33,8 +45,8 @@ public class CacheQueryFutureRankedDecorator<K, V, R> extends CacheQueryFutureDe
    }
 
    /**
-    * Blocking iterator that waits while all items will be returned from nodes
-    * @return Iterator<R>
+    * Blocking iterator that waits while all items will be returned from a future
+    * @return Simple {@link Iterator}
     */
    private BlockingIterator<R> blockingIteratorImpl() {
       return new BlockingIterator<R>() {

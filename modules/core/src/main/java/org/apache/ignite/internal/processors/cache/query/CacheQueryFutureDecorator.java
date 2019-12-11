@@ -6,6 +6,12 @@ import org.apache.ignite.internal.processors.cache.GridCacheContext;
 
 import java.util.UUID;
 
+/**
+ * CacheQueryFutureDecorator
+ * @param <K> key
+ * @param <V> value
+ * @param <R> result type
+ */
 public abstract class CacheQueryFutureDecorator<K, V, R> extends GridCacheQueryFutureAdapter<K, V, R> {
    private final GridCacheQueryFutureAdapter<K, V, R>  future;
 

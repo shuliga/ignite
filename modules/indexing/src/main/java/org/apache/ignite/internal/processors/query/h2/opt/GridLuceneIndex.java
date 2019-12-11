@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteLogger;
 import org.apache.ignite.binary.BinaryObject;
-import org.apache.ignite.cache.query.QueryRanked;
+import org.apache.ignite.cache.query.Ranked;
 import org.apache.ignite.internal.GridKernalContext;
 import org.apache.ignite.internal.processors.cache.CacheObject;
 import org.apache.ignite.internal.processors.cache.CacheObjectContext;
@@ -390,7 +390,7 @@ public class GridLuceneIndex implements AutoCloseable {
 
             if (obj instanceof BinaryObject) {
                 BinaryObject binary = (BinaryObject) obj;
-                return (Z) processor.builder(binary).setField(QueryRanked.RANK_FIELD_NAME, docScore).build();
+                return (Z) processor.builder(binary).setField(Ranked.RANK_FIELD_NAME, docScore).build();
             } else {
                 log.warning("Unmarshalled object is not instance of BinaryObject, it has " + obj.getClass());
             }
@@ -442,7 +442,7 @@ public class GridLuceneIndex implements AutoCloseable {
 
                 V v = type.valueClass() == String.class
                       ? (V)doc.get(VAL_STR_FIELD_NAME)
-                      : QueryUtils.isSuperclassPresent(meta, QueryRanked.class)
+                      : QueryUtils.isSuperclassPresent(meta, Ranked.class)
                         ? tryUnmarshalWithDocScore(doc.getBinaryValue(VAL_FIELD_NAME).bytes, ldr, score)
                         : unmarshall(doc.getBinaryValue(VAL_FIELD_NAME).bytes, ldr);
 

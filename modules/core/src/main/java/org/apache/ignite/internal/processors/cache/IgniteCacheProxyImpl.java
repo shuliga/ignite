@@ -645,7 +645,7 @@ public class IgniteCacheProxyImpl<K, V> extends AsyncSupportAdapter<IgniteCache<
             } else {
                 throw new IgniteException("An instance is not comparable. "
                         + "Please if you use ranked text query, "
-                        + "extend QueryRanked class that is comparable");
+                        + "extend Ranked class that is comparable");
             }
         };
     }

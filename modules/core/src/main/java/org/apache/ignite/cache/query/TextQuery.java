@@ -138,7 +138,7 @@ public final class TextQuery<K, V> extends Query<Cache.Entry<K, V>> {
      * @return {@code this} For chaining.
      */
     public TextQuery<K, V> setType(Class<?> type) {
-        this.ordered = QueryUtils.isSuperclassPresent(type, QueryRanked.class);
+        this.ordered = QueryUtils.isSuperclassPresent(type, Ranked.class);
         return setType(QueryUtils.typeName(type));
     }
 

@@ -33,6 +33,7 @@ import org.apache.ignite.binary.BinaryObject;
 import org.apache.ignite.cache.CacheAtomicityMode;
 import org.apache.ignite.cache.affinity.Affinity;
 import org.apache.ignite.cache.query.QueryCursor;
+import org.apache.ignite.cache.query.Ranked;
 import org.apache.ignite.cache.query.TextQuery;
 import org.apache.ignite.cache.query.annotations.QuerySqlField;
 import org.apache.ignite.cache.query.annotations.QueryTextField;
@@ -65,6 +66,9 @@ public class GridCacheFullTextQuerySelfTest extends GridCommonAbstractTest {
 
     /** Concurrent threads number */
     private static final int N_THREADS = 20;
+
+    /** Lucene doc score */
+    private static final float RANK = 1.0f;
 
     /**
      * Container for expected values and all available entries
@@ -383,6 +387,8 @@ public class GridCacheFullTextQuerySelfTest extends GridCommonAbstractTest {
 
             assertEquals(entry.getKey(), entry.getValue().field("age"));
 
+            assertEquals(RANK, (Float)entry.getValue().field("rank"));
+
             testPair.expected.remove(entry.getKey());
         }
         return testPair;
@@ -406,6 +412,8 @@ public class GridCacheFullTextQuerySelfTest extends GridCommonAbstractTest {
             assertEquals(entry.getKey().toString(), entry.getValue().name);
 
             assertEquals(entry.getKey().intValue(), entry.getValue().age);
+
+            assertEquals(RANK, entry.getValue().getRank());
 
             testPair.expected.remove(entry.getKey());
         }
@@ -457,8 +465,11 @@ public class GridCacheFullTextQuerySelfTest extends GridCommonAbstractTest {
 
     /**
      * Test model class.
+     *
+     * Updated. Person class extends Ranked (that implements {@link Serializable})
+     * for holding float rank value from {@link org.apache.lucene.search.ScoreDoc}
      */
-    public static class Person implements Serializable {
+    public static class Person extends Ranked {
         /** */
         @QueryTextField
         String name;

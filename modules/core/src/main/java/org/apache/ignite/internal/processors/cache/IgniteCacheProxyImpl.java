@@ -50,6 +50,7 @@ import org.apache.ignite.IgniteCache;
 import org.apache.ignite.IgniteCacheRestartingException;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteException;
+import org.apache.ignite.binary.BinaryObject;
 import org.apache.ignite.cache.CacheEntry;
 import org.apache.ignite.cache.CacheEntryEventSerializableFilter;
 import org.apache.ignite.cache.CacheEntryProcessor;
@@ -65,6 +66,7 @@ import org.apache.ignite.cache.query.Query;
 import org.apache.ignite.cache.query.QueryCursor;
 import org.apache.ignite.cache.query.QueryDetailMetrics;
 import org.apache.ignite.cache.query.QueryMetrics;
+import org.apache.ignite.cache.query.Ranked;
 import org.apache.ignite.cache.query.ScanQuery;
 import org.apache.ignite.cache.query.SpiQuery;
 import org.apache.ignite.cache.query.SqlFieldsQuery;
@@ -554,7 +556,7 @@ public class IgniteCacheProxyImpl<K, V> extends AsyncSupportAdapter<IgniteCache<
                         CacheQueryFuture future = qry.execute();
                         return q.isOrdered() ?
                                 new CacheQueryFutureRankedDecorator((GridCacheQueryFutureAdapter) future,
-                                        comparatorByRankValue())
+                                        comparatorByRankValue(isKeepBinary))
                                 : future;
                     }
                 }, false);
@@ -623,7 +625,7 @@ public class IgniteCacheProxyImpl<K, V> extends AsyncSupportAdapter<IgniteCache<
         });
     }
 
-    private <R> Comparator<R> comparatorByRankValue() {
+    private <R> Comparator<R> comparatorByRankValue(boolean isKeepBinary) {
         return (o1, o2) -> {
             Object a;
             Object b;
@@ -637,14 +639,22 @@ public class IgniteCacheProxyImpl<K, V> extends AsyncSupportAdapter<IgniteCache<
                 b = ((Map.Entry) o2).getValue();
             }
 
-            if (a instanceof Comparable) {
-                return ((Comparable) a).compareTo(b);
-            } else {
-                throw new IgniteException("An instance is not comparable. "
+            try {
+                return isKeepBinary ?
+                        resolveBinaryComparator((BinaryObject) a, (BinaryObject) b)
+                        : ((Comparable) a).compareTo(b);
+            } catch (ClassCastException e) {
+                throw new IgniteException("An instance is not Comparable and not BinaryObject "
                         + "Please if you use ranked text query, "
-                        + "extend Ranked class that is comparable");
+                        + "extend Ranked class that is comparable", e);
             }
         };
+    }
+
+    private int resolveBinaryComparator(BinaryObject a, BinaryObject b) {
+        float rankA = a.field(Ranked.RANK_FIELD_NAME);
+        float rankB = b.field(Ranked.RANK_FIELD_NAME);
+        return Float.compare(rankA, rankB);
     }
 
     /**

@@ -34,13 +34,13 @@ import java.util.Objects;
  *     }
  * </code>
  *
- * For getting rank value use get of super class
+ * For getting rank value use get of a super class
  */
 public class Ranked implements Comparable<Ranked>, Serializable {
     private static final long serialVersionUID = -1L;
 
     /**
-     * {@code java.lang.String} constat of the rank field name
+     * {@link java.lang.String} constat of the rank field name
      * For a simple access to the name instead of reflection
      */
     public static final String RANK_FIELD_NAME = "rank";
@@ -56,7 +56,7 @@ public class Ranked implements Comparable<Ranked>, Serializable {
 
 
     /**
-     * Compares the two specified {@code org.apache.ignite.cache.query.Ranked} values by score
+     * Compares the two specified values by score
      *
      * @param that rank to compare
      * @return 0 if ranks are equal, (-1 or less) if this rank less

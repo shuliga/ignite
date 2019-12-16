@@ -63,7 +63,7 @@ public class Ranked implements Comparable<Ranked>, Serializable {
      *         than that rank (1 or greater), if this rank greater than that rank
      */
     @Override
-    public int compareTo(@NotNull Ranked that) {
+    public final int compareTo(@NotNull Ranked that) {
         return Float.compare(this.rank, that.rank);
     }
 

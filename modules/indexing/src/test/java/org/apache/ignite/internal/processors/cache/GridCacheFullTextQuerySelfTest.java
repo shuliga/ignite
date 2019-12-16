@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import javax.cache.Cache;
@@ -427,7 +428,7 @@ public class GridCacheFullTextQuerySelfTest extends GridCommonAbstractTest {
      */
     private static void checkForMissedKeys(IgniteEx ignite, Collection<Integer> exp,
         List<Cache.Entry<Integer, ?>> all) throws IgniteCheckedException {
-        if (exp.size() == 0)
+        if (exp.isEmpty())
             return;
 
         IgniteInternalCache<Integer, Person> cache = ignite.cachex(PERSON_CACHE);
@@ -492,6 +493,22 @@ public class GridCacheFullTextQuerySelfTest extends GridCommonAbstractTest {
             cal.add(Calendar.YEAR, -age);
 
             birthday = cal.getTime();
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (o == null || getClass() != o.getClass())
+                return false;
+            if (!super.equals(o))
+                return false;
+            Person person = (Person)o;
+            return age == person.age &&
+                name.equals(person.name);
+        }
+
+        @Override public int hashCode() {
+            return Objects.hash(super.hashCode(), name, age);
         }
     }
 }

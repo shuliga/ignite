@@ -23,6 +23,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -258,7 +259,9 @@ public class GridCacheFullTextQuerySelfTest extends GridCommonAbstractTest {
         });
 
         // 2. Validate results.
-        TextQuery qry = new TextQuery<>(Person.class, clause).setLocal(loc).setLimit(limit);
+        TextQuery qry = new TextQuery<>(Person.class, clause)
+            .setLocal(loc)
+            .setLimit(limit);
 
         validateQueryResults(ignite, qry, exp, keepBinary);
 
@@ -367,6 +370,8 @@ public class GridCacheFullTextQuerySelfTest extends GridCommonAbstractTest {
             assertTrue(testPair.all.size() <= QUERY_LIMIT);
         else
             checkForMissedKeys(ignite, testPair.expected, testPair.all);
+        if (qry.isOrdered())
+            checkForOrder(testPair.all);
     }
 
     /**
@@ -419,6 +424,22 @@ public class GridCacheFullTextQuerySelfTest extends GridCommonAbstractTest {
             testPair.expected.remove(entry.getKey());
         }
         return testPair;
+    }
+
+    /**
+     * Check if query results are ordered by rank descending.
+     *
+     * @param all query response entries
+     */
+    private static void checkForOrder(List<Cache.Entry<Integer, ?>> all){
+        Iterator<Cache.Entry<Integer, ?>> it = all.iterator();
+        float prev = Float.MAX_VALUE;
+        while (it.hasNext()){
+            Object entry = it.next().getValue();
+            float curr = entry instanceof BinaryObject ? ((BinaryObject)entry).field("rank") : ((Ranked)entry).getRank();
+            assertTrue("Elements not ordered by rank", curr <= prev);
+            prev = curr;
+        }
     }
 
     /**

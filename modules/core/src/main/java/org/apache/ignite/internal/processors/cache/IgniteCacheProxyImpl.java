@@ -544,8 +544,8 @@ public class IgniteCacheProxyImpl<K, V> extends AsyncSupportAdapter<IgniteCache<
         final CacheQueryFuture fut;
 
         if (query instanceof TextQuery) {
-            TextQuery q = (TextQuery)query;
-            qry = ctx.queries().createFullTextQuery(q.getType(), q.getText(), q.getLimit(), isKeepBinary, q.isOrdered());
+            TextQuery<K, V> q = (TextQuery<K, V>)query;
+            qry = ctx.queries().createFullTextQuery(q, isKeepBinary);
 
             if (grp != null)
                 qry.projection(grp);

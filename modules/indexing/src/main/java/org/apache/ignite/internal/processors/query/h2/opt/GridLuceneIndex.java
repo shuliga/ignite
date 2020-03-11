@@ -280,8 +280,6 @@ public class GridLuceneIndex implements AutoCloseable {
             MultiFieldQueryParser parser = new MultiFieldQueryParser(idxdFields,
                 writer.getAnalyzer());
 
-//            parser.setAllowLeadingWildcard(true);
-
             // Filter expired items.
             Query filter = LongPoint.newRangeQuery(EXPIRATION_TIME_FIELD_NAME, U.currentTimeMillis(), Long.MAX_VALUE);
 
@@ -371,7 +369,6 @@ public class GridLuceneIndex implements AutoCloseable {
          * @return Object.
          * @throws IgniteCheckedException If failed.
          */
-        @SuppressWarnings("unchecked")
         private <Z> Z unmarshall(byte[] bytes, ClassLoader ldr) throws IgniteCheckedException {
             if (coctx == null) // For tests.
                 return (Z)JdbcUtils.deserialize(bytes, null);
@@ -379,7 +376,6 @@ public class GridLuceneIndex implements AutoCloseable {
             return (Z)coctx.kernalContext().cacheObjects().unmarshal(coctx, bytes, ldr);
         }
 
-        @SuppressWarnings("unchecked")
         private <Z> Z tryUnmarshalWithDocScore(byte[] bytes, ClassLoader ldr, float docScore)
               throws IgniteCheckedException {
             if (coctx == null) // For tests.
@@ -413,7 +409,6 @@ public class GridLuceneIndex implements AutoCloseable {
          *
          * @throws IgniteCheckedException If failed.
          */
-        @SuppressWarnings("unchecked")
         private void findNext() throws IgniteCheckedException {
             curr = null;
 

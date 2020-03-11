@@ -41,7 +41,7 @@ import org.apache.ignite.spi.IgniteSpiCloseableIterator;
  * }
  * </pre>
  */
-public interface GridCloseableIterator<T> extends GridIterator<T>, IgniteSpiCloseableIterator<T>, AutoCloseable {
+public interface GridCloseableIterator<T> extends GridIterator<T>, IgniteSpiCloseableIterator<T> {
     /**
      * Closes the iterator and frees all the resources held by the iterator.
      * Iterator can not be used any more after calling this method.

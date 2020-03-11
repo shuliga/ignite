@@ -1,5 +1,8 @@
 package org.apache.ignite.internal.processors.cache.query;
 
+import java.util.Collection;
+import java.util.NoSuchElementException;
+import org.apache.ignite.cluster.ClusterNode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,7 +15,7 @@ import java.util.Queue;
  * CacheQueryFutureRankedDecorator decorates CacheQueryFutureAdapter for collection results
  * in {@link PriorityQueue} which actually is implementation of Max Tree.
  *
- * Decorates {@link GridCacheQueryFutureAdapter#next()} using {@link BlockingIterator#await()}
+ * Decorates {@link GridCacheQueryFutureAdapter#next()} using {@link PagingSortedIterator#await()}
  * Firstly a future completes an asynchronous task and results are collected to the queue
  * Then iterator slices the queue if limitIsDisabled is {@code true}
  * otherwise returns sorted queue in descending order
@@ -22,9 +25,10 @@ import java.util.Queue;
  */
 public class CacheQueryFutureRankedDecorator<K, V, R> extends CacheQueryFutureDecorator<K, V, R> {
    private final GridCacheQueryFutureAdapter<K, V, R> future;
-   private final BlockingIterator<R> iterator;
+   private final PagingSortedIterator<R> iterator;
    private final Comparator<R> comparator;
    private final int limit;
+   private final int allPagesSize;
    private boolean isLimitDisabled;
 
    public CacheQueryFutureRankedDecorator(GridCacheQueryFutureAdapter<K, V, R> future,
@@ -32,19 +36,23 @@ public class CacheQueryFutureRankedDecorator<K, V, R> extends CacheQueryFutureDe
       super(future);
       this.future = future;
       this.comparator = comparator;
+      this.allPagesSize = future.query().query().pageSize() * future.query().query().nodes().size();
       this.limit = future.query().query().limit();
       this.isLimitDisabled = 0 >= this.limit;
-      this.iterator = blockingIteratorImpl();
+      this.iterator = pagingSortedIteratorImpl();
    }
 
    /**
-    * Blocking iterator that waits while all items will be returned from a future
+    * Iterator that waits while first page items will be returned from all nodes.
+    * All incoming items are sorted by provided comparator.
+    * This is a Merge/Sort algorithm implementation that guarantee ordered response to be prepared as soon as possible.
     * @return Simple {@link Iterator}
     */
-   private BlockingIterator<R> blockingIteratorImpl() {
-      return new BlockingIterator<R>() {
+   private PagingSortedIterator<R> pagingSortedIteratorImpl() {
+      return new PagingSortedIterator<R>() {
          R next;
          int counter;
+         int allPagesCounter;
          boolean released;
          private final Queue<R> queue = new PriorityQueue<>(comparator.reversed());
 
@@ -55,7 +63,7 @@ public class CacheQueryFutureRankedDecorator<K, V, R> extends CacheQueryFutureDe
             }
             // Adds the counted value to priority queue (max tree)
             R val;
-            while ((val = future.next()) != null) {
+            while ((val = future.next()) != null && allPagesCounter++ <= allPagesSize) {
                queue.add(val);
             }
             released = true;
@@ -72,7 +80,10 @@ public class CacheQueryFutureRankedDecorator<K, V, R> extends CacheQueryFutureDe
          @Override
          public R next() {
             counter++;
-            return this.next;
+            allPagesCounter--;
+            if (!isLimitDisabled && counter > limit)
+               throw new NoSuchElementException("Cannot iterate over queue limit (" + limit + ")");
+            return next;
          }
       };
    }
@@ -84,7 +95,7 @@ public class CacheQueryFutureRankedDecorator<K, V, R> extends CacheQueryFutureDe
       return iterator.hasNext() ? iterator.next() : null;
    }
 
-   private interface BlockingIterator<E> extends Iterator<E> {
+   private interface PagingSortedIterator<E> extends Iterator<E> {
       void await();
    }
 }

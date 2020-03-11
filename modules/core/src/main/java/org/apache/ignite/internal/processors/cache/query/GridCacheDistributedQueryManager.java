@@ -520,7 +520,6 @@ public class GridCacheDistributedQueryManager<K, V> extends GridCacheQueryManage
     }
 
     /** {@inheritDoc} */
-    @SuppressWarnings("unchecked")
     @Override public CacheQueryFuture<?> queryDistributed(GridCacheQueryBean qry, final Collection<ClusterNode> nodes) {
         assert cctx.config().getCacheMode() != LOCAL;
 
@@ -804,50 +803,32 @@ public class GridCacheDistributedQueryManager<K, V> extends GridCacheQueryManage
         assert req != null;
         assert nodes != null;
 
-        final UUID locNodeId = cctx.localNodeId();
-
-        ClusterNode locNode = null;
-
-        Collection<ClusterNode> rmtNodes = null;
-
-        for (ClusterNode n : nodes) {
-            if (n.id().equals(locNodeId))
-                locNode = n;
-            else {
-                if (rmtNodes == null)
-                    rmtNodes = new ArrayList<>(nodes.size());
-
-                rmtNodes.add(n);
-            }
-        }
-
         // Request should be sent to remote nodes before the query is processed on the local node.
         // For example, a remote reducer has a state, we should not serialize and then send
         // the reducer changed by the local node.
-        if (!F.isEmpty(rmtNodes)) {
-            for (ClusterNode node : rmtNodes) {
-                try {
-                    cctx.io().send(node, req, GridIoPolicy.QUERY_POOL);
-                }
-                catch (IgniteCheckedException e) {
-                    if (cctx.io().checkNodeLeft(node.id(), e, true)) {
-                        fut.onNodeLeft(node.id());
+        Collection<ClusterNode> remoteNodes = cctx.getRemoteNodes(nodes);
+        for (ClusterNode node : remoteNodes) {
+            try {
+                cctx.io().send(node, req, GridIoPolicy.QUERY_POOL);
+            }
+            catch (IgniteCheckedException e) {
+                if (cctx.io().checkNodeLeft(node.id(), e, true)) {
+                    fut.onNodeLeft(node.id());
 
-                        if (fut.isDone())
-                            return;
-                    }
-                    else
-                        throw e;
+                    if (fut.isDone())
+                        return;
                 }
+                else
+                    throw e;
             }
         }
 
-        if (locNode != null) {
+        if (cctx.hasLocalNode(nodes)) {
             cctx.closures().callLocalSafe(new Callable<Object>() {
                 @Override public Object call() throws Exception {
                     req.beforeLocalExecution(cctx);
 
-                    processQueryRequest(locNodeId, req);
+                    processQueryRequest(cctx.localNodeId(), req);
 
                     return null;
                 }

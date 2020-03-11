@@ -50,6 +50,7 @@ import org.apache.ignite.IgniteSystemProperties;
 import org.apache.ignite.cache.CacheEntry;
 import org.apache.ignite.cache.QueryIndexType;
 import org.apache.ignite.cache.query.QueryMetrics;
+import org.apache.ignite.cache.query.TextQuery;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.CacheConfiguration;
 import org.apache.ignite.events.CacheQueryExecutedEvent;
@@ -107,7 +108,6 @@ import org.apache.ignite.internal.util.typedef.P1;
 import org.apache.ignite.internal.util.typedef.T2;
 import org.apache.ignite.internal.util.typedef.T3;
 import org.apache.ignite.internal.util.typedef.X;
-import org.apache.ignite.internal.util.typedef.internal.A;
 import org.apache.ignite.internal.util.typedef.internal.CU;
 import org.apache.ignite.internal.util.typedef.internal.LT;
 import org.apache.ignite.internal.util.typedef.internal.S;
@@ -453,7 +453,6 @@ public abstract class GridCacheQueryManager<K, V> extends GridCacheManagerAdapte
      * @param qry Query.
      * @return Query future.
      */
-    @SuppressWarnings("unchecked")
     CacheQueryFuture<?> queryLocal(GridCacheQueryBean qry) {
         assert qry.query().type() != GridCacheQueryType.SCAN : qry;
 
@@ -2762,26 +2761,23 @@ public abstract class GridCacheQueryManager<K, V> extends GridCacheManagerAdapte
      * Creates user's full text query, queried class, and query clause. For more information refer to {@link CacheQuery}
      * documentation.
      *
-     * @param clsName Query class name.
-     * @param search Search clause.
-     * @param limit Limits response records count. If 0 or less, considered to be no limit.
+     * @param query TextQuery instance.
      * @param keepBinary Keep binary flag.
      * @return Created query.
      */
-    public CacheQuery<Map.Entry<K, V>> createFullTextQuery(String clsName,
-        String search, int limit, boolean keepBinary, boolean keepOrder) {
-        A.notNull("clsName", clsName);
-        A.notNull("search", search);
-
+    public CacheQuery<Map.Entry<K, V>> createFullTextQuery(TextQuery<K, V> query, boolean keepBinary) {
         return new GridCacheQueryAdapter<Map.Entry<K, V>>(cctx,
             TEXT,
-            clsName,
-            search,
+            query.getType(),
+            query.getText(),
             null,
             null,
             false,
             keepBinary,
-            null).limit(limit).keepOrder(keepOrder);
+            null)
+            .pageSize(query.getPageSize())
+            .limit(query.getLimit())
+            .keepOrder(query.isOrdered());
     }
 
     /** @return Query iterators. */

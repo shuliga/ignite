@@ -86,6 +86,9 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
     private final GridCacheQueryType type;
 
     /** */
+    private Collection<ClusterNode> nodes;
+
+    /** */
     private final IgniteLogger log;
 
     /** Class name in case of binary query. */
@@ -170,6 +173,7 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
         assert part == null || part >= 0;
 
         this.cctx = cctx;
+        this.nodes = Collections.singletonList(cctx.localNode());
         this.type = type;
         this.filter = filter;
         this.transform = transform;
@@ -212,6 +216,7 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
         assert part == null || part >= 0;
 
         this.cctx = cctx;
+        this.nodes = Collections.singletonList(cctx.localNode());
         this.type = type;
         this.clsName = clsName;
         this.clause = clause;
@@ -267,6 +272,7 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
         Boolean dataPageScanEnabled
     ) {
         this.cctx = cctx;
+        this.nodes = Collections.singletonList(cctx.localNode());
         this.type = type;
         this.log = log;
         this.pageSize = pageSize;
@@ -509,10 +515,8 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
     private <R> CacheQueryFuture<R> execute0(@Nullable IgniteReducer<T, R> rmtReducer, @Nullable Object... args) {
         assert type != SCAN : this;
 
-        Collection<ClusterNode> nodes;
-
         try {
-            nodes = nodes();
+            nodes = nodesToExecuteOn();
         }
         catch (IgniteCheckedException e) {
             return new GridCacheQueryErrorFuture<>(cctx.kernalContext(), e);
@@ -544,9 +548,9 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
         final GridCacheQueryBean bean = new GridCacheQueryBean(this, (IgniteReducer<Object, Object>)rmtReducer,
             null, args);
 
-        final GridCacheQueryManager qryMgr = cctx.queries();
+        final GridCacheQueryManager<?, ?> qryMgr = cctx.queries();
 
-        boolean loc = nodes.size() == 1 && F.first(nodes).id().equals(cctx.localNodeId());
+        boolean loc = cctx.isLocalNode(nodes);
 
         if (type == SQL_FIELDS || type == SPI)
             return (CacheQueryFuture<R>)(loc ? qryMgr.queryFieldsLocal(bean) :
@@ -560,7 +564,7 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
         assert type == SCAN : "Wrong processing of query: " + type;
 
         // Affinity nodes snapshot.
-        Collection<ClusterNode> nodes = new ArrayList<>(nodes());
+        nodes = new ArrayList<>(nodesToExecuteOn());
 
         cctx.checkSecurity(SecurityPermission.CACHE_READ);
 
@@ -591,7 +595,7 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
 
         taskHash = cctx.kernalContext().job().currentTaskNameHash();
 
-        final GridCacheQueryManager qryMgr = cctx.queries();
+        final GridCacheQueryManager<?, ?> qryMgr = cctx.queries();
 
         MvccQueryTracker mvccTracker = null;
 
@@ -647,7 +651,7 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
     /**
      * @return Nodes to execute on.
      */
-    private Collection<ClusterNode> nodes() throws IgniteCheckedException {
+    private Collection<ClusterNode> nodesToExecuteOn() throws IgniteCheckedException {
         CacheMode cacheMode = cctx.config().getCacheMode();
 
         Integer part = partition();
@@ -666,21 +670,25 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
 
             case REPLICATED:
                 if (prj != null || part != null)
-                    return nodes(cctx, prj, part);
+                    return nodesInProjection(cctx, prj, part);
 
                 if (cctx.affinityNode())
                     return Collections.singletonList(cctx.localNode());
 
-                Collection<ClusterNode> affNodes = nodes(cctx, null, null);
+                Collection<ClusterNode> affNodes = nodesInProjection(cctx, null, null);
 
                 return affNodes.isEmpty() ? affNodes : Collections.singletonList(F.rand(affNodes));
 
             case PARTITIONED:
-                return nodes(cctx, prj, part);
+                return nodesInProjection(cctx, prj, part);
 
             default:
                 throw new IllegalStateException("Unknown cache distribution mode: " + cacheMode);
         }
+    }
+
+    public Collection<ClusterNode> nodes() {
+        return Collections.unmodifiableCollection(nodes);
     }
 
     /**
@@ -689,7 +697,7 @@ public class GridCacheQueryAdapter<T> implements CacheQuery<T> {
      * @return Collection of data nodes in provided projection (if any).
      * @throws IgniteCheckedException If partition number is invalid.
      */
-    private static Collection<ClusterNode> nodes(final GridCacheContext<?, ?> cctx,
+    private static Collection<ClusterNode> nodesInProjection(final GridCacheContext<?, ?> cctx,
         @Nullable final ClusterGroup prj, @Nullable final Integer part) throws IgniteCheckedException {
         assert cctx != null;
 

@@ -111,6 +111,7 @@ import org.apache.ignite.lang.IgniteUuid;
 import org.apache.ignite.marshaller.Marshaller;
 import org.apache.ignite.plugin.security.SecurityException;
 import org.apache.ignite.plugin.security.SecurityPermission;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.ignite.IgniteSystemProperties.IGNITE_DISABLE_TRIGGERING_CACHE_INTERCEPTOR_ON_CONFLICT;
@@ -902,7 +903,7 @@ public class GridCacheContext<K, V> implements Externalizable {
      * @param n Node to check.
      * @return {@code True} if node is local.
      */
-    public boolean isLocalNode(ClusterNode n) {
+    public boolean isLocalNode(@NotNull ClusterNode n) {
         assert n != null;
 
         return localNode().id().equals(n.id());
@@ -916,6 +917,55 @@ public class GridCacheContext<K, V> implements Externalizable {
         assert id != null;
 
         return localNode().id().equals(id);
+    }
+
+    /**
+     * @param nodes Nodes collection to check.
+     * @return {@code True} if collection consists of single local node.
+     */
+    public boolean isLocalNode(@NotNull Collection<ClusterNode> nodes) {
+        assert nodes != null;
+
+        return nodes.size() == 1 && isLocalNode(F.first(nodes));
+    }
+
+    /**
+     * @param nodes Nodes collection to check.
+     * @return {@code True} if collection contains local node.
+     */
+    public boolean hasLocalNode(Collection<ClusterNode> nodes) {
+        return getLocalNode(nodes) != null;
+    }
+
+    /**
+     * @param nodes Collection of nodes.
+     * @return Local node, if found; otherwise {@code null}.
+     */
+    @Nullable public ClusterNode getLocalNode(@NotNull Collection<ClusterNode> nodes) {
+        assert nodes != null;
+
+        for (ClusterNode n : nodes) {
+            if (n.id().equals(localNodeId())) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param nodes Collection of nodes.
+     * @return Collection of remote nodes, or empty collection if no remote nodes faund.
+     */
+    public Collection<ClusterNode> getRemoteNodes(@NotNull Collection<ClusterNode> nodes) {
+        assert nodes != null;
+
+        Collection<ClusterNode> remoteNodes = new ArrayList<>(nodes.size());
+        for (ClusterNode n : nodes) {
+            if (!n.id().equals(localNodeId())) {
+                remoteNodes.add(n);
+            }
+        }
+        return remoteNodes;
     }
 
     /**
